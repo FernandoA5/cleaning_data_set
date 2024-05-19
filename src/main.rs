@@ -1,3 +1,5 @@
+use std::process::exit;
+
 #[derive(Debug)]
 struct Vector{
     headers: Vec<String>,
@@ -62,89 +64,96 @@ fn main() {
             headers.push(word.unwrap().to_string());
         }
     }
+    //ELIMINAMOS EL PRIMER ELEMENTO, QUE ES "KORD"
+    headers.remove(0);
 
     //RECORREMOS TODAS LAS LINEAS DEL ARCHIVO. INMEDIATAMENTE DESPUES DEL HEADER, CADA 3 POSICIONES ES UN DATO.
     //THAT MEANS, NO PODEMOS USAR EL METODO SPLIT_WHITESPACE, SINO QUE DEBEMOS USAR UNA VARIABLE QUE NOS INDIQUE LA POSICION DE LA PALABRA QUE ESTAMOS LEYENDO.
     //SOLO DESPUES DE LA FILA QUE COMIENZA CON " KORD" HAY DATOS. (EXCLUIMOS LA QUE COMIENZA CON " KORD")
 
-    let mut data: Vec<Vec<String>> = Vec::new();
+    let mut data_vector: Vec<Vec<String>> = Vec::new();
     let mut data_found = false;
 
     for line in kord.lines(){
         if line.starts_with(" KORD"){
             data_found = true;
-            println!("\n");
+            // println!("\n");
         }
         if data_found && !line.starts_with(" KORD"){
-
             //EL HEADER OCUPA LAS PRIMERAS 4 POSICIONES DE LA LINEA, OBTENEMOS EL RESTO DE LA LINEA
             //SI LA LINEA ESTÁ VACÍA, TERMINAMOS EL PROCESO
             let mut words = line.split_whitespace();
             let mut word = words.next();
             if word != None{
-                let data_line = &line[4..];
-                println!("{}", data_line);
+                let data_line = &line[5..];
+                let mut data: Vec<String> = data_line.chars()
+                    .collect::<Vec<char>>()
+                    .chunks(3)
+                    .map(|chunk| chunk.iter().collect::<String>())
+                    .collect();
+
+                //ELIMINAMOS EL ULTIMO ELEMENTO, QUE ES UN ESPACIO EN BLANCO
+                data.pop();
+                // println!("{:?}", data);
+                data_vector.push(data);
             }
-
-            
-
-            // let mut words = line.split_whitespace();
-            // let mut word = words.next();
-            // let mut row: Vec<String> = Vec::new();
-            // while word != None{
-            //     word = words.next();
-            //     if word == None{
-            //         break;
-            //     }
-
-            //     // println!("{}", word.unwrap());
-                
-
-            //     row.push(word.unwrap().to_string());
-            // }
-            // data.push(row);
 
         }
     }
+
+    // println!("{:?}", data_vector);
+
+    let final_vector: Vector = create_data_vector(headers, dates, hours, data_vector);
     
-
+    //MOSTRAMOS LOS PRIMEROS 5 ELEMENTOS DE CADA VEC en VECTOR
+    println!("{:?}", final_vector.headers);
+    //ESCRIBIMOS EL VECTOR EN UN ARCHIVO CSV
+    let mut writer = csv::Writer::from_path("KORD.csv").unwrap();
     
+    writer.write_record(&final_vector.headers).unwrap();
+    let mut contador = 0;
+    for row in final_vector.data {
+        writer.write_record(&row).unwrap();
+    }
 
-    // println!("{:?}", data);
+    writer.flush().unwrap();
 
-
-
-    let final_vector: Vector = create_data_vector(headers, dates, hours);
-    // println!("{:?}", final_vector);
 
 }
 
 
-fn create_data_vector(headers: Vec<String>, dates: Vec<String>, hours: Vec<String>) -> Vector{
-    //FOR DOMMIE PORPOUSES, WE USE JUST 0s AS DATA
-    let mut data: Vec<Vec<String>> = Vec::new();
-    for _ in 0..dates.len(){
-        let mut row: Vec<String> = Vec::new();
-        for _ in 0..headers.len(){
-            row.push("0".to_string());
-        }
-        data.push(row);
-    }
-
+fn create_data_vector(headers: Vec<String>, dates: Vec<String>, hours: Vec<String>, data_vector: Vec<Vec<String>>) -> Vector{
     //A LOS HEADERS, AL COMIENZO LES AGREGAMOS "DATE" Y "HOUR"
     let mut new_headers = headers.clone();
     new_headers.insert(0, "DATE".to_string());
     new_headers.insert(1, "HOUR".to_string());
 
-    //A LOS DATOS, AL COMIENZO LES AGREGAMOS LAS FECHAS Y LAS HORAS
+    let total_rows = headers.len();
+    println!("{:?}", total_rows);
+
+    //EN LA PRIMER POSICION DE CADA FILA, AGREGAMOS LA FECHA Y EN LA SEGUNDA LA HORA
+    let mut new_data: Vec<Vec<String>> = Vec::new();
     for i in 0..dates.len(){
-        data[i].insert(0, dates[i].clone());
-        data[i].insert(1, hours[i].clone());
+        let mut new_row: Vec<String> = Vec::new();
+        new_row.push(dates[i].to_string());
+        new_row.push(hours[i].to_string());
+
+        for j in 0..data_vector.len(){
+            // println!("{:?}", data_vector[j][0]);
+            new_row.push(data_vector[j][0].to_string());
+        }
+        
+        new_data.push(new_row);
     }
+    //TERMINAMOS EL PROGRAMA
+    // exit(0);
+
+
+    // println!("{:?}", new_data);
 
     let final_vector = Vector{
         headers: new_headers,
-        data: data,
+        data: new_data,
     };
 
     final_vector
